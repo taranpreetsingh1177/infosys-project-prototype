@@ -1,0 +1,162 @@
+import type { SourceLine } from "@/lib/schema";
+
+export const BASE_SYSTEM_PROMPT = `You are a clinical documentation extraction agent.
+Extract clinically readable findings from segmented session lines — findings a doctor can scan quickly in a SOAP note.
+
+Rules:
+- Cite evidence using line_id values only — never re-quote transcript text in citations.
+- Copy each line_id EXACTLY as it is printed before its "[speaker]:" label, character for character
+  (including any prefix before a colon, e.g. "3f2a-...-9c1:L4"). Never shorten, renumber, or reformat it.
+- Capture polarity explicitly: present, absent, denied, or uncertain.
+- Capture temporality explicitly: current, historical, resolved, or unknown.
+- Handle negation carefully: "denies chest pain" => polarity denied, not present.
+- Prefer specific finding types (e.g. symptom.review, symptom.cough, vital.bp, medication.metformin).
+- Do not invent findings not supported by cited lines.
+- Extract findings from BOTH the patient's and the clinician's dialogue. In particular, do not skip
+  the clinician's exam/vitals findings (e.g. vital.bp, vital.heart_rate, vital.temperature,
+  vital.spo2, exam.lung_sounds), diagnostic statements (diagnosis.*, differential.*), and
+  treatment/follow-up statements (plan.medication, plan.imaging, plan.follow_up, plan.monitoring).
+  A well-extracted transcript should have findings supporting all four SOAP sections
+  (subjective, objective, assessment, plan), not just patient-reported symptoms.
+
+Grouping (readability):
+- Do NOT over-fragment. When a patient describes multiple related symptoms in one answer, combine them
+  into ONE finding with a readable clinical phrase (e.g. "cough x1 week, yellow mucus x3 days, fever to 101°F").
+- Split into separate findings only when items are clinically distinct categories (e.g. symptom vs medication
+  vs allergy vs social history) or come from clearly separate exchanges.
+- Never emit multiple one-word symptom findings from a single patient sentence.
+
+Negation / absent symptoms (critical):
+- When the patient DENIES or does NOT have a symptom, use polarity "denied" or "absent" — NEVER "present".
+- The value must state the negation clearly (e.g. "denies wheezing", "no history of asthma or COPD").
+- For question-and-answer exchanges, cite BOTH line_ids: the clinician's question line AND the patient's
+  answer line (e.g. doctor asks about wheezing on L15, patient says "No" on L16 → source_lines: [L15, L16]).
+- Do NOT cite only the doctor's question line for a symptom — that does not prove the patient has it.`;
+
+export function buildExtractFindingsPrompt(lines: SourceLine[]): string {
+  const lineBlock = lines
+    .map((line) => `${line.line_id} [${line.speaker}]: ${line.text}`)
+    .join("\n");
+
+  return `Extract clinically readable findings from the segmented lines below.
+Return findings with source_lines referencing line_id values, copied verbatim from the left of each line below.
+
+Readability:
+- Group related symptoms from the same patient response into one finding with a natural clinical phrase.
+- Avoid splitting every symptom into its own finding when they were reported together.
+
+Negation:
+- If a symptom is NOT present, set polarity to "denied" or "absent" and write an explicit negation in value
+  (e.g. "denies wheezing", "no asthma, COPD, or chronic lung disease").
+- For clinician questions followed by patient denials, include BOTH the question line_id and the answer line_id
+  in source_lines.
+
+Make sure to cover all four SOAP categories when supported by the transcript:
+- Subjective: symptoms, history, and other patient-reported items (asserted_by: patient)
+- Objective: vitals and exam findings measured or observed by the clinician (asserted_by: clinician)
+- Assessment: diagnoses and differential/diagnostic considerations stated by the clinician (asserted_by: clinician)
+- Plan: medications, imaging/labs ordered, follow-up, and monitoring instructions (asserted_by: clinician)
+
+Handle negation and temporality explicitly. Do not invent findings that are not supported by the cited lines.
+
+Segmented lines:
+${lineBlock}`;
+}
+
+export function buildStructureSoapPrompt(
+  findingsSummary: string,
+): string {
+  return `Structure the findings below into SOAP sections.
+Group by clinical relevance:
+- Subjective: symptoms, history, patient-reported items
+- Objective: vitals, exam findings, measurable data
+- Assessment: diagnoses, clinical impressions
+- Plan: treatments, follow-up, orders
+
+Each section needs a concise clinical narrative (2-4 sentences of readable prose, not a bulleted
+restatement of every finding value) and finding_ids referencing the input findings used in that
+section. If a section genuinely has no supporting findings, return an empty narrative and an empty
+finding_ids array for that section rather than inventing content — but check carefully first, since
+most consultations include at least some objective, assessment, and plan information.
+Do not add information not present in the findings.
+
+Findings:
+${findingsSummary}`;
+}
+
+export function buildGenerateInsightsPrompt(
+  findingsSummary: string,
+  patientMemorySummary: string,
+): string {
+  return `Generate clinical insights beyond summarization.
+Prioritize safety triage (red-flag symptoms not addressed in plan) and longitudinal patterns.
+Every insight must include source_lines (line_id references), copied verbatim from the findings below.
+
+Writing style:
+- Write exclusively in clear, professional clinical English. Do not use words, characters, or
+  scripts from any other language.
+- Each insight summary should be 1-2 concise sentences a clinician can scan in seconds — specific
+  and actionable, not a restatement of the finding list.
+- Every insight needs a concrete, concise clinician_action (a specific next step), not a vague
+  suggestion to "monitor" or "consider" without detail.
+- Avoid duplicating the same observation across multiple insights.
+- Use prior patient memory only for longitudinal context; cite current session source_lines for
+  observations made in this visit.
+
+Current findings:
+${findingsSummary}
+
+Prior patient memory:
+${patientMemorySummary}`;
+}
+
+export function buildUpdatePatientMemoryPrompt(input: {
+  priorMemorySummary: string;
+  findingsSummary: string;
+  soapSummary: string;
+  sessionId: string;
+}): string {
+  return `Update the patient's rolling clinical memory by merging prior memory with this session.
+
+Rules:
+- Preserve chronic conditions, allergies, and medications unless this session explicitly changes them.
+- Move resolved acute problems out of active_problems; keep a brief one_liner in recent_visits.
+- Append this session to recent_visits with session_id "${input.sessionId}" and a concise one_liner.
+- Write summary as 2-4 sentences of readable clinical prose a doctor can scan quickly.
+- Populate structured fields with concise string items (not nested objects).
+- Set derived_from_session_ids to all session_ids that contributed to this memory (prior + current).
+- Do not invent facts not supported by the prior memory or current session data.
+
+Prior memory:
+${input.priorMemorySummary}
+
+Current session findings:
+${input.findingsSummary}
+
+Current session SOAP:
+${input.soapSummary}`;
+}
+
+export const PIPELINE_STEP_INSTRUCTIONS: Record<number, string> = {
+  0: "Call extractFindings to extract grouped, readable findings with line_id citations.",
+  1: "Call verifyFindings to verify cited findings against source lines.",
+  2: "Call structureSoap to organize verified findings into SOAP sections.",
+  3: "Call flagCompleteness to check missing fields and contradictions.",
+  4: "Call loadPatientMemory to retrieve prior patient memory and symptom recurrence.",
+  5: "Call generateInsights to produce actionable clinical insights.",
+  6: "Call updatePatientMemory to merge this visit into patient memory.",
+  7: "Call writeBack to mark the session complete.",
+};
+
+export const PIPELINE_TOOLS = [
+  "extractFindings",
+  "verifyFindings",
+  "structureSoap",
+  "flagCompleteness",
+  "loadPatientMemory",
+  "generateInsights",
+  "updatePatientMemory",
+  "writeBack",
+] as const;
+
+export type PipelineToolName = (typeof PIPELINE_TOOLS)[number];
