@@ -1,17 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { RiArrowRightSLine, RiMoreLine } from "@remixicon/react";
+import { RiArrowRightSLine, RiArrowRightUpLine } from "@remixicon/react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   getPatientAvatarClassName,
   getPatientInitials,
@@ -107,9 +100,10 @@ export function PatientCardItem({ patient }: PatientCardItemProps) {
           <div className="min-w-0 space-y-0.5">
             <Link
               href={`/patients/${patient.patient_id}`}
-              className="block truncate text-base font-semibold hover:underline"
+              className="inline-flex max-w-full cursor-pointer items-center gap-1 text-base font-semibold underline"
             >
-              {patient.name}
+              <span className="truncate">{patient.name}</span>
+              <RiArrowRightUpLine className="size-4 shrink-0" />
             </Link>
             {mrnAgeGender && (
               <p className="truncate text-sm text-muted-foreground">
@@ -157,44 +151,15 @@ export function PatientCardItem({ patient }: PatientCardItemProps) {
           </Link>
         </div>
 
-        <div className="flex items-start justify-between gap-3 md:flex-col md:items-end">
-          <div className="flex flex-col items-start gap-1.5 md:items-end">
-            <Badge className={cn("border-0", statusBadge.className)}>
-              {statusBadge.label}
-            </Badge>
-            {lastUpdated && (
-              <span className="text-xs text-muted-foreground">
-                Last updated {formatRelativeUpdated(lastUpdated)}
-              </span>
-            )}
-          </div>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button variant="ghost" size="icon-sm">
-                  <RiMoreLine />
-                  <span className="sr-only">Patient actions</span>
-                </Button>
-              }
-            />
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                render={
-                  <Link href={`/patients/${patient.patient_id}`}>
-                    View patient
-                  </Link>
-                }
-              />
-              <DropdownMenuItem
-                render={
-                  <Link href={`/patients/${patient.patient_id}`}>
-                    View all sessions
-                  </Link>
-                }
-              />
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className="flex flex-col items-start gap-1.5 md:items-end">
+          <Badge className={cn("border-0", statusBadge.className)}>
+            {statusBadge.label}
+          </Badge>
+          {lastUpdated && (
+            <span className="text-xs text-muted-foreground">
+              Last updated {formatRelativeUpdated(lastUpdated)}
+            </span>
+          )}
         </div>
       </div>
     </Card>

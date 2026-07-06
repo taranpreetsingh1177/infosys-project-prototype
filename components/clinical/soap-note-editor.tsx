@@ -49,7 +49,7 @@ export function SoapNoteEditor({
         Session Note — {patientName}
       </h1>
       <Tabs defaultValue={defaultTab} className="flex flex-col gap-6">
-        <TabsList variant="outline" className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-4">
           {sections.map((section) => {
             const Icon = SOAP_TAB_ICONS[section.key];
             return (

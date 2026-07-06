@@ -2,7 +2,12 @@ import type { PipelineProgress } from "@/lib/types/session";
 
 export const PIPELINE_STREAM_NAMESPACE = "pipeline";
 
-export type PipelineStreamStatus = "pending" | "processing" | "complete" | "error";
+export type PipelineStreamStatus =
+  | "pending"
+  | "processing"
+  | "complete"
+  | "error"
+  | "cancelled";
 
 export type PipelineStreamEvent =
   | {
@@ -28,6 +33,13 @@ export type PipelineStreamEvent =
       errorMessage: string;
       progress: PipelineProgress;
       status: "error";
+    }
+  | {
+      type: "cancelled";
+      stepId: string | null;
+      errorMessage: string;
+      progress: PipelineProgress;
+      status: "cancelled";
     }
   | {
       type: "done";

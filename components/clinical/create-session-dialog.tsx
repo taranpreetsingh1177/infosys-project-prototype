@@ -14,17 +14,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { writeSessionPendingHint } from "@/lib/session-pending-hint";
 
 interface CreateSessionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   patientId: string;
+  patientName?: string;
 }
 
 export function CreateSessionDialog({
   open,
   onOpenChange,
   patientId,
+  patientName,
 }: CreateSessionDialogProps) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
@@ -63,6 +66,11 @@ export function CreateSessionDialog({
       }
 
       const data = (await response.json()) as { session_id: string };
+      writeSessionPendingHint(data.session_id, {
+        patientId,
+        patientName,
+        status: "processing",
+      });
       onOpenChange(false);
       router.push(`/session/${data.session_id}`);
     } catch (err) {

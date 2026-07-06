@@ -29,11 +29,13 @@ export function ClinicalShell({ children }: ClinicalShellProps) {
 
 interface CreateSessionProviderProps {
   patientId: string;
+  patientName?: string;
   children: React.ReactNode;
 }
 
 export function CreateSessionProvider({
   patientId,
+  patientName,
   children,
 }: CreateSessionProviderProps) {
   const [createOpen, setCreateOpen] = useState(false);
@@ -47,6 +49,7 @@ export function CreateSessionProvider({
         open={createOpen}
         onOpenChange={setCreateOpen}
         patientId={patientId}
+        patientName={patientName}
       />
     </CreateSessionContext.Provider>
   );

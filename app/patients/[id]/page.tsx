@@ -318,7 +318,7 @@ export default function PatientHistoryPage() {
 
   return (
     <ClinicalShell>
-      <CreateSessionProvider patientId={patientId}>
+      <CreateSessionProvider patientId={patientId} patientName={patient.name}>
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-3">

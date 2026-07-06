@@ -7,7 +7,10 @@ import {
   type PipelineStreamEvent,
   pipelineStreamToSSE,
 } from "@/lib/pipeline-stream";
-import { persistSessionFailure } from "@/lib/session-failure";
+import {
+  persistSessionCancelled,
+  persistSessionFailure,
+} from "@/lib/session-failure";
 import type { PipelineProgress } from "@/lib/types/session";
 
 type RouteContext = {
@@ -32,6 +35,16 @@ function terminalEventFromSession(
   session: NonNullable<Awaited<ReturnType<typeof getSession>>>,
 ): PipelineStreamEvent {
   const progress = progressFromSession(session.agent_metadata);
+
+  if (session.status === "cancelled") {
+    return {
+      type: "cancelled",
+      stepId: progress.failed_step ?? null,
+      errorMessage: progress.error_message ?? "Cancelled by user",
+      progress,
+      status: "cancelled",
+    };
+  }
 
   if (session.status === "failed") {
     return {
@@ -62,6 +75,17 @@ function isActiveSessionStatus(status: string) {
   return status === "pending" || status === "processing";
 }
 
+function currentPipelineStep(
+  session: NonNullable<Awaited<ReturnType<typeof getSession>>>,
+): PipelineStepId | null {
+  const progress = session.agent_metadata?.pipeline_progress;
+  return (
+    (progress?.failed_step as PipelineStepId | null | undefined) ??
+    (progress?.current_step as PipelineStepId | null | undefined) ??
+    null
+  );
+}
+
 async function reconcileFailedSession(
   sessionId: string,
   session: NonNullable<Awaited<ReturnType<typeof getSession>>>,
@@ -75,6 +99,24 @@ async function reconcileFailedSession(
   await persistSessionFailure(
     sessionId,
     failedStep ?? null,
+    errorMessage,
+  );
+  return (await getSession(sessionId)) ?? session;
+}
+
+async function reconcileCancelledSession(
+  sessionId: string,
+  session: NonNullable<Awaited<ReturnType<typeof getSession>>>,
+  errorMessage: string,
+  failedStep?: PipelineStepId | null,
+) {
+  if (!isActiveSessionStatus(session.status)) {
+    return session;
+  }
+
+  await persistSessionCancelled(
+    sessionId,
+    failedStep ?? currentPipelineStep(session),
     errorMessage,
   );
   return (await getSession(sessionId)) ?? session;
@@ -111,7 +153,11 @@ export async function GET(request: Request, context: RouteContext) {
     });
   }
 
-  if (session.status === "completed" || session.status === "failed") {
+  if (
+    session.status === "completed" ||
+    session.status === "failed" ||
+    session.status === "cancelled"
+  ) {
     return new Response(singleEventStream(terminalEventFromSession(session)), {
       headers: sseHeaders(),
     });
@@ -132,16 +178,25 @@ export async function GET(request: Request, context: RouteContext) {
     }
 
     const workflowStatus = await run.status;
+    if (workflowStatus === "cancelled") {
+      const reconciled = await reconcileCancelledSession(
+        id,
+        session,
+        "Cancelled by user",
+        currentPipelineStep(session),
+      );
+      return new Response(singleEventStream(terminalEventFromSession(reconciled)), {
+        headers: sseHeaders(),
+      });
+    }
+
     if (workflowStatus === "failed") {
       const reconciled = await reconcileFailedSession(
         id,
         session,
         session.agent_metadata?.pipeline_progress?.error_message ??
           "Workflow failed",
-        (session.agent_metadata?.pipeline_progress?.failed_step as
-          | PipelineStepId
-          | null
-          | undefined) ?? null,
+        currentPipelineStep(session),
       );
       return new Response(singleEventStream(terminalEventFromSession(reconciled)), {
         headers: sseHeaders(),

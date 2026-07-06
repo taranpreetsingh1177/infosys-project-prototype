@@ -7,9 +7,16 @@ import type { SessionDetailWithPatient } from "@/lib/adapters/session-to-ui";
 import { RAJESH_SHARMA_SESSION } from "@/lib/mock/rajesh-sharma-session";
 import { mergePipelineProgress } from "@/lib/pipeline-progress-utils";
 import type { PipelineStreamEvent } from "@/lib/pipeline-stream";
+import {
+  clearSessionPendingHint,
+  pendingHintToSessionView,
+  peekSessionPendingHint,
+} from "@/lib/session-pending-hint";
 import type { SessionStatus, SessionView } from "@/lib/types/session";
 
 const FALLBACK_POLL_MS = 1500;
+const FETCH_RETRY_MS = 400;
+const FETCH_MAX_ATTEMPTS = 5;
 
 function getMockSession(id: string): SessionView {
   if (id === "demo") return RAJESH_SHARMA_SESSION;
@@ -25,6 +32,21 @@ async function fetchSession(id: string): Promise<SessionView | null> {
   } catch {
     return null;
   }
+}
+
+function initialSessionState(id: string): {
+  session: SessionView | null;
+  isLoading: boolean;
+} {
+  const hint = peekSessionPendingHint(id);
+  if (hint) {
+    return {
+      session: pendingHintToSessionView(id, hint),
+      isLoading: false,
+    };
+  }
+
+  return { session: null, isLoading: false };
 }
 
 function isProcessingStatus(status: SessionStatus | undefined) {
@@ -67,15 +89,33 @@ function mergeSessionProgress(
   };
 }
 
+async function fetchSessionWithRetry(id: string): Promise<SessionView | null> {
+  for (let attempt = 0; attempt < FETCH_MAX_ATTEMPTS; attempt += 1) {
+    const data = await fetchSession(id);
+    if (data) return data;
+    if (attempt < FETCH_MAX_ATTEMPTS - 1) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, FETCH_RETRY_MS * (attempt + 1)),
+      );
+    }
+  }
+  return null;
+}
+
 export function useSession(id: string) {
-  const [session, setSession] = useState<SessionView | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const bootstrapRef = useRef(initialSessionState(id));
+  const [session, setSession] = useState<SessionView | null>(
+    bootstrapRef.current.session,
+  );
+  const [isLoading, setIsLoading] = useState(bootstrapRef.current.isLoading);
   const [usingMock, setUsingMock] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const sessionIdRef = useRef(id);
 
   const reloadSession = useCallback(async () => {
     const data = await fetchSession(id);
     if (!data) return null;
+    clearSessionPendingHint(id);
     setSession(data);
     setUsingMock(false);
     return data;
@@ -84,6 +124,15 @@ export function useSession(id: string) {
   useEffect(() => {
     let cancelled = false;
     let pollId: ReturnType<typeof setInterval> | undefined;
+
+    if (sessionIdRef.current !== id) {
+      const bootstrap = initialSessionState(id);
+      bootstrapRef.current = bootstrap;
+      sessionIdRef.current = id;
+      setSession(bootstrap.session);
+      setIsLoading(bootstrap.isLoading);
+      setUsingMock(false);
+    }
 
     const stopPolling = () => {
       if (pollId) {
@@ -102,6 +151,7 @@ export function useSession(id: string) {
       pollId = setInterval(async () => {
         const data = await fetchSession(id);
         if (cancelled || !data) return;
+        clearSessionPendingHint(id);
         setSession((current) =>
           current ? mergeSessionProgress(current, data) : data,
         );
@@ -144,25 +194,39 @@ export function useSession(id: string) {
       };
     };
 
+    const applyFetchedSession = (data: SessionView) => {
+      clearSessionPendingHint(id);
+      setSession((current) =>
+        current ? mergeSessionProgress(current, data) : data,
+      );
+      setUsingMock(false);
+      setIsLoading(false);
+
+      if (isProcessingStatus(data.status)) {
+        connectProgressStream();
+      }
+    };
+
     const init = async () => {
-      const data = await fetchSession(id);
+      const data = await fetchSessionWithRetry(id);
       if (cancelled) return;
 
       if (data) {
-        setSession(data);
-        setUsingMock(false);
-        setIsLoading(false);
-
-        if (isProcessingStatus(data.status)) {
-          connectProgressStream();
-        }
+        applyFetchedSession(data);
         return;
       }
 
-      setSession(getMockSession(id));
-      setUsingMock(true);
+      if (id === "demo") {
+        setSession(getMockSession(id));
+        setUsingMock(true);
+      }
+
       setIsLoading(false);
     };
+
+    if (isProcessingStatus(bootstrapRef.current.session?.status)) {
+      connectProgressStream();
+    }
 
     void init();
 

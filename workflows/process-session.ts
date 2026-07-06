@@ -5,7 +5,10 @@ import {
   initPipelineProgress,
 } from "@/lib/pipeline-progress";
 import { getSession } from "@/lib/db";
-import { persistSessionFailure } from "@/lib/session-failure";
+import {
+  persistSessionCancelled,
+  persistSessionFailure,
+} from "@/lib/session-failure";
 import type { PipelineStepId } from "@/lib/pipeline-steps";
 import type { RuntimeContext } from "@/lib/schema";
 async function markSessionProcessing(sessionId: string) {
@@ -56,7 +59,14 @@ export async function processSession(input: {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Pipeline failed";
-    await failSessionStep(input.sessionId, message);
+    const isCancelled =
+      message.toLowerCase().includes("cancel") ||
+      (error instanceof Error && error.name.toLowerCase().includes("cancel"));
+    if (isCancelled) {
+      await persistSessionCancelled(input.sessionId, null, "Cancelled by user");
+    } else {
+      await failSessionStep(input.sessionId, message);
+    }
     await closePipelineStream();
     throw error;
   }

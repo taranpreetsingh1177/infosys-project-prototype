@@ -6,6 +6,7 @@ import {
   RiCheckLine,
   RiCloseCircleLine,
   RiLoader4Line,
+  RiStopCircleLine,
   RiTimeLine,
 } from "@remixicon/react";
 
@@ -20,6 +21,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PIPELINE_STEP_IDS, PIPELINE_STEPS } from "@/lib/pipeline-steps";
+import type { PipelineStepId } from "@/lib/pipeline-steps";
 import { normalizePipelineProgress } from "@/lib/pipeline-progress-utils";
 import type { PipelineProgress, SessionStatus } from "@/lib/types/session";
 import { cn } from "@/lib/utils";
@@ -31,6 +33,30 @@ interface SessionProcessingTimelineProps {
   progress?: PipelineProgress;
   patientId: string;
   patientName: string;
+}
+
+function getProgressPercent(
+  progress: PipelineProgress | undefined,
+  totalSteps: number,
+): number {
+  if (!progress || totalSteps === 0) return 0;
+
+  const normalized = normalizePipelineProgress(progress);
+  const completed = normalized.completed_steps.length;
+
+  if (normalized.current_step) {
+    const currentIndex = PIPELINE_STEP_IDS.indexOf(
+      normalized.current_step as PipelineStepId,
+    );
+    if (currentIndex >= 0) {
+      return Math.min(
+        100,
+        Math.round(((currentIndex + 1) / totalSteps) * 100),
+      );
+    }
+  }
+
+  return Math.min(100, Math.round((completed / totalSteps) * 100));
 }
 
 function getStepState(
@@ -98,6 +124,10 @@ function statusBadge(status: SessionStatus) {
       return <Badge variant="outline">Queued</Badge>;
     case "error":
       return <Badge variant="destructive">Failed</Badge>;
+    case "cancelled":
+      return (
+        <Badge className="border-0 bg-amber-100 text-amber-800">Cancelled</Badge>
+      );
     default:
       return <Badge>Complete</Badge>;
   }
@@ -114,7 +144,18 @@ export function SessionProcessingTimeline({
     : undefined;
   const completedCount = normalizedProgress?.completed_steps.length ?? 0;
   const totalSteps = PIPELINE_STEPS.length;
+  const progressPercent = getProgressPercent(progress, totalSteps);
+  const activeStepCount = normalizedProgress?.current_step
+    ? Math.max(
+        completedCount,
+        PIPELINE_STEP_IDS.indexOf(
+          normalizedProgress.current_step as PipelineStepId,
+        ) + 1,
+      )
+    : completedCount;
   const isFailed = status === "error";
+  const isCancelled = status === "cancelled";
+  const isTerminal = isFailed || isCancelled;
 
   return (
     <div className="flex min-h-svh items-center justify-center p-6">
@@ -134,28 +175,30 @@ export function SessionProcessingTimeline({
               <div className="min-w-0 space-y-1">
                 <CardTitle>Clinical scribe pipeline</CardTitle>
                 <CardDescription>
-                  {isFailed
-                    ? `Session for ${patientName} encountered an error. Review the details below.`
-                    : `Processing session for ${patientName}. Analyzing the transcript and generating your clinical documentation.`}
+                  {isCancelled
+                    ? `Session for ${patientName} was cancelled. No further processing will occur.`
+                    : isFailed
+                      ? `Session for ${patientName} encountered an error. Review the details below.`
+                      : `Processing session for ${patientName}. Analyzing the transcript and generating your clinical documentation.`}
                 </CardDescription>
               </div>
               {statusBadge(status)}
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            {!isFailed && (
+            {!isTerminal && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>Progress</span>
                   <span>
-                    {completedCount} of {totalSteps} steps
+                    {activeStepCount} of {totalSteps} steps
                   </span>
                 </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
                   <div
-                    className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+                    className="h-full rounded-full bg-primary transition-[width] duration-500 ease-out"
                     style={{
-                      width: `${Math.round((completedCount / totalSteps) * 100)}%`,
+                      width: `${progressPercent}%`,
                     }}
                   />
                 </div>
@@ -167,6 +210,16 @@ export function SessionProcessingTimeline({
                 <RiCloseCircleLine />
                 <AlertTitle>Processing failed</AlertTitle>
                 <AlertDescription>{progress.error_message}</AlertDescription>
+              </Alert>
+            )}
+
+            {isCancelled && (
+              <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
+                <RiStopCircleLine className="text-amber-700 dark:text-amber-300" />
+                <AlertTitle>Processing cancelled</AlertTitle>
+                <AlertDescription>
+                  {progress?.error_message ?? "Cancelled by user"}
+                </AlertDescription>
               </Alert>
             )}
 
@@ -210,7 +263,7 @@ export function SessionProcessingTimeline({
               })}
             </ol>
 
-            {isFailed && (
+            {isTerminal && (
               <div className="flex justify-end border-t pt-4">
                 <Button render={<Link href={`/patients/${patientId}`} />}>
                   Return to patient
