@@ -7,7 +7,9 @@ import {
   detectSafetyTriageGaps,
   mergeInsights,
 } from "@/lib/decisions";
-import { getSession, getFindings, upsertInsights } from "@/lib/db";
+import { getSession, getFindings, getSourceLines, upsertInsights } from "@/lib/db";
+import { resolveSourceLineIds } from "@/lib/line-id";
+import type { SourceLine as UiSourceLine } from "@/lib/types/session";
 import { buildPriorMemorySummary } from "@/lib/memory";
 import {
   InsightSchema,
@@ -49,9 +51,20 @@ export async function generateInsightsExecute(input: {
     throw new Error(`Session not found: ${input.sessionId}`);
   }
 
-  const findings = await getFindings(input.sessionId);
+  const [findings, dbSourceLines] = await Promise.all([
+    getFindings(input.sessionId),
+    getSourceLines(input.sessionId),
+  ]);
   const patientMemory = session.agent_metadata?.patient_memory ?? null;
   const symptomRecurrence = session.agent_metadata?.symptom_recurrence ?? [];
+
+  const uiSourceLines: UiSourceLine[] = dbSourceLines.map((line) => ({
+    line_id: line.line_id,
+    speaker: line.speaker.toLowerCase().includes("patient")
+      ? "patient"
+      : "doctor",
+    text: line.text,
+  }));
 
   const findingsSummary = findings
     .map(
@@ -68,19 +81,31 @@ export async function generateInsightsExecute(input: {
     prompt: buildGenerateInsightsPrompt(findingsSummary, patientMemorySummary),
   });
 
-  const llmInsights: Insight[] = object.insights.map((insight) =>
-    InsightSchema.parse({
+  const llmInsights: Insight[] = object.insights.map((insight) => {
+    const memoryReason =
+      insight.memory_reason?.trim().length
+        ? sanitizeClinicalText(insight.memory_reason)
+        : undefined;
+    const memoryUsed =
+      patientMemory !== null &&
+      insight.memory_context_used &&
+      Boolean(memoryReason);
+
+    return InsightSchema.parse({
       ...insight,
       summary: sanitizeClinicalText(insight.summary),
+      source_lines: resolveSourceLineIds(insight.source_lines, uiSourceLines),
       insight_id: crypto.randomUUID(),
       session_id: input.sessionId,
-      graph_context_used: patientMemory !== null,
+      memory_context_used: memoryUsed,
+      memory_reason: memoryUsed ? memoryReason : undefined,
+      memory_fields_used: memoryUsed ? (insight.memory_fields_used ?? []) : [],
       clinician_action:
         insight.clinician_action.trim().length > 0
           ? sanitizeClinicalText(insight.clinician_action)
           : undefined,
-    }),
-  );
+    });
+  });
 
   const planFindingIds =
     session.soap?.plan?.finding_ids ??

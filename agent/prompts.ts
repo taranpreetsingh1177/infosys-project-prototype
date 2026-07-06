@@ -28,7 +28,20 @@ Grouping (readability):
 
 Negation / absent symptoms (critical):
 - When the patient DENIES or does NOT have a symptom, use polarity "denied" or "absent" — NEVER "present".
-- The value must state the negation clearly (e.g. "denies wheezing", "no history of asthma or COPD").
+- Write negation values as natural clinical phrases a doctor can scan quickly. NEVER use double negatives.
+  BAD: "denies never smoker", "denies no history", "denies not wheezing"
+  GOOD: "denies tobacco use", "non-smoker", "never smoker", "denies wheezing", "no alcohol use"
+- The value itself must carry the negation. For denied/absent polarity, use one of these patterns:
+  • "denies <symptom>" (e.g. "denies wheezing", "denies chest pain")
+  • "no <thing>" (e.g. "no alcohol use", "no history of asthma or COPD")
+  • "non-smoker" or "never smoker" for tobacco abstinence
+  Do NOT combine "denies" with words that already negate (never, no, non-, not).
+- Tobacco / smoking:
+  • Patient denies smoking ("No", "Never", "I don't smoke") → polarity denied or absent; value
+    "denies tobacco use", "non-smoker", or "never smoker" — NOT "denies never smoker".
+  • Patient affirms smoking → polarity present; value describes use (e.g. "current smoker",
+    "smokes 1 pack/day").
+  • "Do you smoke?" + "No" / "Never" → denied; value "denies tobacco use" or "non-smoker".
 - For question-and-answer exchanges, cite BOTH line_ids: the clinician's question line AND the patient's
   answer line (e.g. doctor asks about wheezing on L15, patient says "No" on L16 → source_lines: [L15, L16]).
 - Do NOT cite only the doctor's question line for a symptom — that does not prove the patient has it.`;
@@ -45,9 +58,18 @@ Readability:
 - Group related symptoms from the same patient response into one finding with a natural clinical phrase.
 - Avoid splitting every symptom into its own finding when they were reported together.
 
-Negation:
-- If a symptom is NOT present, set polarity to "denied" or "absent" and write an explicit negation in value
-  (e.g. "denies wheezing", "no asthma, COPD, or chronic lung disease").
+Negation (critical — avoid double negatives):
+- If a symptom or history item is NOT present, set polarity to "denied" or "absent".
+- Write values as natural clinical phrases. NEVER produce double negatives such as "denies never smoker"
+  or "denies no history" — these read incorrectly when scanned.
+- Use one clear negation pattern per finding:
+  • "denies <symptom>" (e.g. "denies wheezing")
+  • "no <thing>" (e.g. "no asthma, COPD, or chronic lung disease", "no alcohol use")
+  • "non-smoker" or "never smoker" for tobacco abstinence
+- Tobacco / smoking: "Do you smoke?" + "No" / "Never" → polarity denied or absent; value
+  "denies tobacco use", "non-smoker", or "never smoker" — NOT "denies never smoker".
+  If the patient affirms smoking → polarity present with an appropriate use description.
+- Do NOT combine "denies" with words that already negate (never, no, non-, not).
 - For clinician questions followed by patient denials, include BOTH the question line_id and the answer line_id
   in source_lines.
 
@@ -90,7 +112,8 @@ export function buildGenerateInsightsPrompt(
 ): string {
   return `Generate clinical insights beyond summarization.
 Prioritize safety triage (red-flag symptoms not addressed in plan) and longitudinal patterns.
-Every insight must include source_lines (line_id references), copied verbatim from the findings below.
+Every insight must include source_lines as bare line_id values only (e.g. "<session-uuid>:L4" or
+"L4"), copied from the bracketed citations in the findings below — not the full finding text.
 
 Writing style:
 - Write exclusively in clear, professional clinical English. Do not use words, characters, or
@@ -102,6 +125,18 @@ Writing style:
 - Avoid duplicating the same observation across multiple insights.
 - Use prior patient memory only for longitudinal context; cite current session source_lines for
   observations made in this visit.
+
+Patient memory attribution (per insight):
+- Set memory_context_used to true ONLY when prior patient memory (below) genuinely informed that
+  specific insight — not when the insight is based solely on current session findings.
+- When memory_context_used is true, you MUST provide memory_reason: 1-2 sentences of short
+  clinical reasoning explaining which prior-memory fact informed the insight and how.
+- Optionally set memory_fields_used to the memory sections that informed the insight (e.g.
+  "active_problems", "chronic_conditions", "medications", "allergies", "recent_visits",
+  "summary").
+- When memory_context_used is false, set memory_reason to "" and memory_fields_used to [].
+- Do NOT mark memory_context_used true just because prior memory exists — each insight must earn
+  the flag independently.
 
 Current findings:
 ${findingsSummary}

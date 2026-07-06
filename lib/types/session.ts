@@ -2,7 +2,12 @@ import type { FindingCategory } from "@/lib/finding-category";
 
 export type ConfidenceLevel = "high" | "medium" | "low";
 
-export type SessionStatus = "pending" | "processing" | "complete" | "error";
+export type SessionStatus =
+  | "pending"
+  | "processing"
+  | "complete"
+  | "error"
+  | "cancelled";
 
 export type SoapSectionKey = "subjective" | "objective" | "assessment" | "plan";
 
@@ -49,6 +54,12 @@ export interface Insight {
   description: string;
   source_count: number;
   source_line_ids: string[];
+  /** Prior patient memory informed this insight (not current-session findings alone). */
+  memory_context_used: boolean;
+  /** Short clinical reasoning for why prior memory informed this insight. */
+  memory_reason?: string | null;
+  /** Which parts of patient memory informed this insight (e.g. active_problems). */
+  memory_fields_used?: string[];
 }
 
 export interface PipelineProgress {
@@ -65,6 +76,29 @@ export interface AgentMetadata {
   verified: boolean;
 }
 
+export interface PatientMemoryRecentVisit {
+  session_id: string;
+  date: string;
+  one_liner: string;
+}
+
+export interface PatientMemoryStructured {
+  active_problems: string[];
+  chronic_conditions: string[];
+  medications: string[];
+  allergies: string[];
+  social_history: string[];
+  recent_visits: PatientMemoryRecentVisit[];
+}
+
+/** Snapshot of patient memory used during insight generation for this session. */
+export interface PatientMemorySnapshot {
+  memory_id: string;
+  version: number;
+  summary: string;
+  structured: PatientMemoryStructured;
+}
+
 export interface SessionView {
   id: string;
   patient_id: string;
@@ -77,6 +111,8 @@ export interface SessionView {
   soap: SoapSection[];
   insights: Insight[];
   agent_metadata: AgentMetadata;
+  /** Patient memory snapshot from pipeline (used at insight generation time). */
+  patient_memory?: PatientMemorySnapshot | null;
   pipeline_progress?: PipelineProgress;
 }
 
@@ -87,7 +123,7 @@ export type PatientGender = "male" | "female" | "other" | "unknown";
 export interface RecentSessionSummary {
   session_id: string;
   visit_type: string;
-  status: "pending" | "processing" | "completed" | "failed";
+  status: "pending" | "processing" | "completed" | "failed" | "cancelled";
   created_at: string;
 }
 

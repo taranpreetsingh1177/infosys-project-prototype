@@ -94,7 +94,8 @@ export function detectSafetyTriageGaps(
         summary: `Red-flag symptom "${symptom.value}" was mentioned but not addressed in the Plan.`,
         confidence: 0.9,
         source_lines: symptom.source_lines,
-        graph_context_used: false,
+        memory_context_used: false,
+        memory_fields_used: [],
         clinician_action:
           "Review plan and document evaluation or management for this red-flag symptom.",
       });
@@ -127,7 +128,8 @@ export function detectLongitudinalPatterns(
       summary: `${pattern.finding_type} has recurred across ${pattern.session_count} prior sessions without a resolved diagnosis.`,
       confidence: 0.85,
       source_lines: sourceLinesByType.get(pattern.finding_type) ?? [],
-      graph_context_used: true,
+      memory_context_used: false,
+      memory_fields_used: [],
       clinician_action:
         "Consider longitudinal workup or specialist referral for recurring symptom.",
     });

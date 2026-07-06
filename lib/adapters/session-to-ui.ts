@@ -130,8 +130,12 @@ function formatFindingDisplayValue(
   if (
     normalized.startsWith("denies ") ||
     normalized.startsWith("no ") ||
+    normalized.startsWith("never ") ||
+    normalized.startsWith("non-") ||
+    normalized.startsWith("non ") ||
     normalized.includes("not present") ||
-    normalized.includes("without ")
+    normalized.includes("without ") ||
+    normalized.includes("negative for")
   ) {
     return value;
   }
@@ -233,6 +237,9 @@ export function sessionDetailToUi(detail: SessionDetailWithPatient): SessionView
       description: insight.summary,
       source_count: sourceLineIds.length,
       source_line_ids: sourceLineIds,
+      memory_context_used: insight.memory_context_used,
+      memory_reason: insight.memory_reason ?? null,
+      memory_fields_used: insight.memory_fields_used ?? [],
     };
   });
 
@@ -281,5 +288,6 @@ export function sessionDetailToUi(detail: SessionDetailWithPatient): SessionView
           error_message: session.agent_metadata.pipeline_progress.error_message,
         }
       : undefined,
+    patient_memory: session.agent_metadata?.patient_memory ?? null,
   };
 }

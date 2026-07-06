@@ -91,7 +91,9 @@ export const InsightSchema = z.object({
   summary: z.string(),
   confidence: z.number().min(0).max(1),
   source_lines: z.array(z.string()),
-  graph_context_used: z.boolean().default(false),
+  memory_context_used: z.boolean().default(false),
+  memory_reason: z.string().nullable().optional(),
+  memory_fields_used: z.array(z.string()).default([]),
   clinician_action: z.string().optional(),
 });
 
@@ -132,6 +134,7 @@ export const SessionStatusSchema = z.enum([
   "processing",
   "completed",
   "failed",
+  "cancelled",
 ]);
 
 export const InputTypeSchema = z.enum(["transcript", "doctor_notes", "pdf"]);
@@ -293,12 +296,16 @@ export const SoapStructureSchema = z.object({
   plan: SoapSectionLlmSchema,
 });
 
+/** OpenAI structured output — all fields required (use empty strings/arrays when none). */
 export const InsightLlmSchema = z.object({
   type: InsightTypeSchema,
   summary: z.string(),
   confidence: z.number().min(0).max(1),
   source_lines: z.array(z.string()),
   clinician_action: z.string(),
+  memory_context_used: z.boolean(),
+  memory_reason: z.string(),
+  memory_fields_used: z.array(z.string()),
 });
 
 export const InsightsGenerationSchema = z.object({
