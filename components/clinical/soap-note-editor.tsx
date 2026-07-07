@@ -38,17 +38,16 @@ function getDefaultTab(sections: SoapSection[]): SoapSectionKey {
 }
 
 export function SoapNoteEditor({
-  patientName,
   sections,
 }: SoapNoteEditorProps) {
   const defaultTab = getDefaultTab(sections);
 
   return (
-    <div className="flex w-full flex-col gap-6 rounded-xl border bg-card p-6">
-      <h1 className="text-lg font-semibold">
-        Session Note — {patientName}
-      </h1>
-      <Tabs defaultValue={defaultTab} className="flex flex-col gap-6">
+    <div className="flex w-full flex-col gap-4 rounded-xl border bg-card p-6">
+      <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        Session Notes
+      </h2>
+      <Tabs defaultValue={defaultTab} className="flex flex-col gap-3">
         <TabsList className="grid w-full grid-cols-4">
           {sections.map((section) => {
             const Icon = SOAP_TAB_ICONS[section.key];
@@ -63,7 +62,7 @@ export function SoapNoteEditor({
         </TabsList>
         {sections.map((section) => (
           <TabsContent key={section.key} value={section.key} className="mt-0">
-            <div className="mb-4 flex justify-end">
+            <div className="mb-2 flex justify-end">
               <SectionMenu />
             </div>
             <ul className="flex flex-col gap-3">

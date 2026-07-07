@@ -46,7 +46,11 @@ function initialSessionState(id: string): {
     };
   }
 
-  return { session: null, isLoading: false };
+  // No cached hint yet — we're about to fetch. Track this as loading so
+  // consumers can show a neutral loading state instead of assuming the
+  // session is still processing (which previously caused the pipeline
+  // timeline to flash before a completed session's real data arrived).
+  return { session: null, isLoading: true };
 }
 
 function isProcessingStatus(status: SessionStatus | undefined) {

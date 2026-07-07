@@ -156,3 +156,35 @@ export function getFindingCategory(type: string): FindingCategory {
 
   return "general";
 }
+
+/**
+ * Deterministic SOAP section for a finding category. Used as a fallback
+ * whenever a finding can't be placed by the structuring LLM's own
+ * finding_ids (e.g. a malformed/unmatched reference) — every category maps
+ * to a specific section instead of collapsing into a single catch-all, which
+ * previously caused medications, labs, and exam findings to all show up
+ * under Subjective.
+ *
+ * Note: this is a plain string union (not imported from lib/types/session)
+ * to avoid a circular import — the two types are structurally identical.
+ */
+export function getDefaultSoapSection(
+  type: string,
+): "subjective" | "objective" | "assessment" | "plan" {
+  switch (getFindingCategory(type)) {
+    case "objective":
+    case "lab":
+      return "objective";
+    case "assessment":
+      return "assessment";
+    case "medication":
+    case "plan":
+      return "plan";
+    case "symptom":
+    case "allergy":
+    case "history":
+    case "general":
+    default:
+      return "subjective";
+  }
+}

@@ -32,7 +32,6 @@ import {
   getPatientInitials,
 } from "@/lib/patient-avatar";
 import type { Patient, Session } from "@/lib/schema";
-import type { PatientStatus } from "@/lib/types/session";
 import { cn } from "@/lib/utils";
 
 function formatAge(dateOfBirth: string | null | undefined) {
@@ -50,19 +49,6 @@ function formatAge(dateOfBirth: string | null | undefined) {
 function formatGender(gender: Patient["gender"]) {
   if (!gender || gender === "unknown") return null;
   return gender.charAt(0).toUpperCase() + gender.slice(1);
-}
-
-function patientStatusBadge(status: PatientStatus | undefined) {
-  switch (status) {
-    case "inactive":
-      return { label: "Inactive", className: "bg-muted text-muted-foreground" };
-    case "new":
-      return { label: "New", className: "bg-blue-100 text-blue-800" };
-    case "archived":
-      return { label: "Archived", className: "bg-muted text-muted-foreground" };
-    default:
-      return { label: "Active", className: "bg-emerald-100 text-emerald-800" };
-  }
 }
 
 function formatDate(date: string) {
@@ -93,11 +79,11 @@ function statusLabel(status: Session["status"]) {
 function statusBadgeClass(status: Session["status"]) {
   switch (status) {
     case "completed":
-      return "bg-emerald-100 text-emerald-800";
+      return "bg-primary/10 text-primary";
     case "processing":
-      return "bg-blue-100 text-blue-800";
+      return "bg-secondary text-secondary-foreground";
     case "failed":
-      return "bg-red-100 text-red-800";
+      return "bg-destructive/10 text-destructive";
     default:
       return "bg-muted text-muted-foreground";
   }
@@ -138,7 +124,6 @@ function DetailItem({
 function PatientDetailsCard({ patient }: { patient: Patient }) {
   const age = formatAge(patient.date_of_birth);
   const gender = formatGender(patient.gender);
-  const statusBadge = patientStatusBadge(patient.status);
   const dobDisplay = patient.date_of_birth
     ? `${formatDate(patient.date_of_birth)}${age != null ? ` (${age}y)` : ""}`
     : null;
@@ -155,14 +140,9 @@ function PatientDetailsCard({ patient }: { patient: Patient }) {
           >
             {getPatientInitials(patient.name)}
           </div>
-          <div className="space-y-1.5">
-            <Badge className={cn("border-0", statusBadge.className)}>
-              {statusBadge.label}
-            </Badge>
-            {patient.mrn && (
-              <p className="text-sm text-muted-foreground">MRN {patient.mrn}</p>
-            )}
-          </div>
+          {patient.mrn ? (
+            <p className="text-sm text-muted-foreground">MRN {patient.mrn}</p>
+          ) : null}
         </div>
 
         <div className="grid flex-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

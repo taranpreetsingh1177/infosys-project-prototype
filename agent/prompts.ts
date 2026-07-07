@@ -89,15 +89,19 @@ export function buildStructureSoapPrompt(
   findingsSummary: string,
 ): string {
   return `Structure the findings below into SOAP sections.
-Group by clinical relevance:
-- Subjective: symptoms, history, patient-reported items
-- Objective: vitals, exam findings, measurable data
-- Assessment: diagnoses, clinical impressions
-- Plan: treatments, follow-up, orders
+Group by clinical relevance — assign EVERY finding to exactly the one section it best fits:
+- Subjective: symptoms, history, and other patient-reported items (what the patient says or reports)
+- Objective: vitals, exam findings, and lab results — measurable/observed data (not patient-reported)
+- Assessment: diagnoses, differentials, and clinical impressions
+- Plan: medications (new or changed), treatments, orders, follow-up, and monitoring instructions
 
-Each section needs a concise clinical narrative (2-4 sentences of readable prose, not a bulleted
-restatement of every finding value) and finding_ids referencing the input findings used in that
-section. If a section genuinely has no supporting findings, return an empty narrative and an empty
+Each finding below is prefixed with a short reference id (F1, F2, F3, ...). Each section needs a
+concise clinical narrative (2-4 sentences of readable prose, not a bulleted restatement of every
+finding value) and a finding_ids array containing ONLY those reference ids (e.g. "F1", "F4"),
+copied EXACTLY as printed. Do not invent new ids, do not use the finding's type or value as an id,
+and do not omit a finding from every section — a finding should not be dropped or left unassigned
+just because it doesn't perfectly fit; assign it to the closest matching section instead.
+If a section genuinely has no supporting findings, return an empty narrative and an empty
 finding_ids array for that section rather than inventing content — but check carefully first, since
 most consultations include at least some objective, assessment, and plan information.
 Do not add information not present in the findings.

@@ -3,13 +3,12 @@
 import Link from "next/link";
 import { RiArrowRightSLine, RiArrowRightUpLine } from "@remixicon/react";
 
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
   getPatientAvatarClassName,
   getPatientInitials,
 } from "@/lib/patient-avatar";
-import type { PatientCard, PatientStatus } from "@/lib/types/session";
+import type { PatientCard } from "@/lib/types/session";
 import { cn } from "@/lib/utils";
 
 interface PatientCardItemProps {
@@ -49,19 +48,6 @@ function formatVisitType(visitType: string) {
   return visitType.replaceAll("_", " ");
 }
 
-function patientStatusBadge(status: PatientStatus | undefined) {
-  switch (status) {
-    case "inactive":
-      return { label: "Inactive", className: "bg-muted text-muted-foreground" };
-    case "new":
-      return { label: "New", className: "bg-blue-100 text-blue-800" };
-    case "archived":
-      return { label: "Archived", className: "bg-muted text-muted-foreground" };
-    default:
-      return { label: "Active", className: "bg-emerald-100 text-emerald-800" };
-  }
-}
-
 function formatGender(gender: PatientCard["gender"]) {
   if (!gender || gender === "unknown") return null;
   return gender.charAt(0).toUpperCase() + gender.slice(1);
@@ -70,7 +56,6 @@ function formatGender(gender: PatientCard["gender"]) {
 export function PatientCardItem({ patient }: PatientCardItemProps) {
   const age = formatAge(patient.date_of_birth);
   const gender = formatGender(patient.gender);
-  const statusBadge = patientStatusBadge(patient.status);
   const lastUpdated = patient.updated_at ?? patient.last_session_at;
   const recentSessions = (patient.recent_sessions ?? []).slice(0, 3);
 
@@ -152,9 +137,6 @@ export function PatientCardItem({ patient }: PatientCardItemProps) {
         </div>
 
         <div className="flex flex-col items-start gap-1.5 md:items-end">
-          <Badge className={cn("border-0", statusBadge.className)}>
-            {statusBadge.label}
-          </Badge>
           {lastUpdated && (
             <span className="text-xs text-muted-foreground">
               Last updated {formatRelativeUpdated(lastUpdated)}

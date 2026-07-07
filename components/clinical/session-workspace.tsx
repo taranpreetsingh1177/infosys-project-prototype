@@ -3,6 +3,7 @@
 import { InsightsPanel } from "@/components/clinical/insights-panel";
 import { SessionHeader } from "@/components/clinical/session-header";
 import { SessionProcessingTimeline } from "@/components/clinical/session-processing-timeline";
+import { SessionWorkspaceSkeleton } from "@/components/clinical/session-workspace-skeleton";
 import { SoapNoteEditor } from "@/components/clinical/soap-note-editor";
 import { TranscriptSheet } from "@/components/clinical/transcript-sheet";
 import { CitationProvider } from "@/hooks/use-citation-link";
@@ -18,7 +19,15 @@ function isProcessingStatus(status: string | undefined) {
 }
 
 export function SessionWorkspace({ sessionId }: SessionWorkspaceProps) {
-  const { session } = useSession(sessionId);
+  const { session, isLoading } = useSession(sessionId);
+
+  // Session data hasn't resolved yet — show a neutral skeleton rather than
+  // assuming the session is still processing. Without this, completed
+  // sessions would flash the pipeline timeline for a moment before the real
+  // dashboard loads in.
+  if (!session && isLoading) {
+    return <SessionWorkspaceSkeleton />;
+  }
 
   if (
     !session ||

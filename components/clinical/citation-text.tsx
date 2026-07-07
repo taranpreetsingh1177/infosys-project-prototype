@@ -9,14 +9,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Popover,
-  PopoverContent,
-  PopoverDescription,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { useCitationLink } from "@/hooks/use-citation-link";
 import { FINDING_CATEGORY_CONFIG } from "@/lib/finding-category";
 import type { Finding } from "@/lib/types/session";
@@ -30,15 +22,6 @@ interface CitationTextProps {
   inChip?: boolean;
 }
 
-function formatLineLabels(lineIds: string[]): string {
-  const labels = lineIds.map(formatSourceLineId);
-  return labels.length > 1 ? `Lines ${labels.join(", ")}` : `Line ${labels[0]}`;
-}
-
-function formatSourceLineId(id: string): string {
-  return id.split(":").pop() ?? id;
-}
-
 export function CitationText({
   finding,
   valueOnly = false,
@@ -49,9 +32,13 @@ export function CitationText({
     clearActive,
     openTranscriptForFinding,
     isFindingActive,
+    transcriptOpen,
   } = useCitationLink();
 
   const hasSources = finding.source_line_ids.length > 0;
+  const showCitationHighlight =
+    hasSources && isFindingActive(finding.id) && transcriptOpen;
+
   const isLowConfidence =
     finding.confidence === "low" || !finding.verified;
   const displayText = valueOnly && finding.value ? finding.value : finding.text;
@@ -86,24 +73,24 @@ export function CitationText({
     const content = (
       <span
         className={cn(
-          "rounded-sm transition-colors",
+          "transition-colors",
           highlighted &&
             hasSources &&
             finding.verified &&
             (inChip
               ? "underline decoration-current/50 decoration-dotted underline-offset-2 hover:decoration-current"
-              : "decoration-muted-foreground/40 underline decoration-dotted underline-offset-4 hover:decoration-primary/60"),
+              : "underline decoration-muted-foreground/40 decoration-dotted underline-offset-4 hover:decoration-foreground/50"),
           highlighted &&
             hasSources &&
             !finding.verified &&
             (inChip
               ? "underline decoration-current/60 decoration-dashed underline-offset-2"
-              : "decoration-citation-uncertain/70 underline decoration-dashed underline-offset-4"),
+              : "underline decoration-citation-uncertain/70 decoration-dashed underline-offset-4"),
           hasSources && "cursor-pointer",
-          isFindingActive(finding.id) &&
+          showCitationHighlight &&
             (inChip
-              ? "rounded ring-1 ring-current/40"
-              : "bg-primary/10 ring-1 ring-primary/30"),
+              ? "rounded-sm bg-citation/50 ring-1 ring-citation-foreground/20"
+              : "rounded-sm bg-citation/50 px-0.5 decoration-citation-foreground/50"),
         )}
         onMouseEnter={() => {
           if (hasSources) {
@@ -140,46 +127,7 @@ export function CitationText({
       </span>
     );
 
-    if (!hasSources) {
-      return content;
-    }
-
-    return (
-      <Popover>
-        <PopoverTrigger
-          openOnHover
-          delay={200}
-          nativeButton={false}
-          render={
-            <span
-              className="inline cursor-pointer"
-              onClick={(event) => {
-                event.preventDefault();
-                handleCitationActivate();
-              }}
-            />
-          }
-        >
-          {content}
-        </PopoverTrigger>
-        <PopoverContent align="start" className="w-64">
-          <PopoverHeader>
-            <PopoverTitle className="text-xs font-normal text-muted-foreground">
-              Source: {formatLineLabels(finding.source_line_ids)} — transcript
-            </PopoverTitle>
-            <PopoverDescription>
-              <button
-                type="button"
-                className="text-primary hover:underline"
-                onClick={handleCitationActivate}
-              >
-                View in transcript
-              </button>
-            </PopoverDescription>
-          </PopoverHeader>
-        </PopoverContent>
-      </Popover>
-    );
+    return content;
   };
 
   return <>{renderHighlightedText()}</>;
@@ -198,7 +146,7 @@ export function FindingListItem({ finding }: FindingListItemProps) {
     finding.polarity === "denied" || finding.polarity === "absent";
 
   return (
-    <li className="flex w-full items-start gap-2.5">
+    <li className="-mx-2 flex w-full items-start gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/40">
       <span
         className={cn(
           "inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold leading-none ring-1 ring-inset",

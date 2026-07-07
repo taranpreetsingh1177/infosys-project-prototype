@@ -1,5 +1,5 @@
 import type { Patient, SessionDetailResponse } from "@/lib/schema";
-import { getFindingCategory } from "@/lib/finding-category";
+import { getDefaultSoapSection, getFindingCategory } from "@/lib/finding-category";
 import { resolveSourceLineIds } from "@/lib/line-id";
 import type {
   ConfidenceLevel,
@@ -213,14 +213,17 @@ export function sessionDetailToUi(detail: SessionDetailWithPatient): SessionView
     (finding) => !referencedFindingIds.has(finding.finding_id),
   );
 
-  if (orphanFindings.length > 0) {
-    const subjective = soap.find((section) => section.key === "subjective");
-    if (subjective) {
-      subjective.findings.push(
-        ...orphanFindings.map((finding) =>
-          dbFindingToUi(finding, "subjective", uiSourceLines),
-        ),
-      );
+  // Findings the structuring step didn't place into any section (e.g. an
+  // older session generated before finding_ids were reliably resolved) get
+  // sorted into their most likely SOAP section by category — vitals/labs to
+  // Objective, medications to Plan, diagnoses to Assessment, etc. — rather
+  // than being dumped into Subjective, which previously made every finding
+  // type appear there regardless of what it actually was.
+  for (const finding of orphanFindings) {
+    const sectionKey = getDefaultSoapSection(finding.type);
+    const section = soap.find((s) => s.key === sectionKey);
+    if (section) {
+      section.findings.push(dbFindingToUi(finding, sectionKey, uiSourceLines));
     }
   }
 

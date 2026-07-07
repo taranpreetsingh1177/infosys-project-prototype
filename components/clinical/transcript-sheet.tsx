@@ -20,14 +20,14 @@ export function TranscriptSheet({ lines }: TranscriptSheetProps) {
 
   return (
     <Sheet open={transcriptOpen} onOpenChange={setTranscriptOpen}>
-      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
-        <SheetHeader className="border-b px-4 py-3">
+      <SheetContent side="right" className="flex w-full flex-col gap-0 bg-background p-0 sm:max-w-md">
+        <SheetHeader className="gap-1 border-b px-5 py-4">
           <SheetTitle>Original Transcript</SheetTitle>
           <SheetDescription>
             Tap a citation in the SOAP note to jump to the source line.
           </SheetDescription>
         </SheetHeader>
-        <TranscriptPanel lines={lines} className="min-h-0 flex-1 border-0" />
+        <TranscriptPanel lines={lines} className="min-h-0 flex-1" />
       </SheetContent>
     </Sheet>
   );
