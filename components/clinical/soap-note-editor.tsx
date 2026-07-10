@@ -8,7 +8,7 @@ import {
 } from "@remixicon/react";
 import type { ComponentType } from "react";
 
-import { FindingListItem, SectionMenu } from "@/components/clinical/citation-text";
+import { FindingListItem } from "@/components/clinical/citation-text";
 import {
   Tabs,
   TabsContent,
@@ -62,9 +62,6 @@ export function SoapNoteEditor({
         </TabsList>
         {sections.map((section) => (
           <TabsContent key={section.key} value={section.key} className="mt-0">
-            <div className="mb-2 flex justify-end">
-              <SectionMenu />
-            </div>
             <ul className="flex flex-col gap-3">
               {section.findings.map((finding) => (
                 <FindingListItem key={finding.id} finding={finding} />

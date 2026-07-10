@@ -1,14 +1,7 @@
 "use client";
 
-import { RiErrorWarningLine, RiMore2Line } from "@remixicon/react";
+import { RiErrorWarningLine } from "@remixicon/react";
 
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useCitationLink } from "@/hooks/use-citation-link";
 import { FINDING_CATEGORY_CONFIG } from "@/lib/finding-category";
 import type { Finding } from "@/lib/types/session";
@@ -169,25 +162,5 @@ export function FindingListItem({ finding }: FindingListItemProps) {
         )}
       </div>
     </li>
-  );
-}
-
-export function SectionMenu() {
-  return (
-    <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button variant="ghost" size="icon-sm" className="shrink-0">
-              <RiMore2Line />
-              <span className="sr-only">Section options</span>
-            </Button>
-          }
-        />
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem>Edit section</DropdownMenuItem>
-        <DropdownMenuItem>Regenerate</DropdownMenuItem>
-        <DropdownMenuItem>Copy</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
