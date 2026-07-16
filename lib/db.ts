@@ -3,6 +3,8 @@ import type {
   Finding,
   Insight,
   Patient,
+  PatientDocument,
+  PatientDocumentType,
   PatientMemoryStructured,
   PatientMemoryVersion,
   PatientWithSessionCount,
@@ -10,6 +12,10 @@ import type {
   SourceLine,
   SymptomRecurrenceItem,
 } from "@/lib/schema";
+
+export const PATIENT_DOCS_BUCKET = "patient-docs";
+export const PATIENT_DOCS_PROMPT_LIMIT = 10;
+export const PATIENT_DOCS_TEXT_TRUNCATE = 2000;
 
 function getSupabaseConfig() {
   const url = process.env.SUPABASE_URL;
@@ -413,4 +419,128 @@ export async function createPatientMemoryVersion(params: {
 
   if (error) throw new Error(error.message);
   return data as PatientMemoryVersion;
+}
+
+export async function listPatientDocuments(
+  patientId: string,
+  options?: { limit?: number },
+): Promise<PatientDocument[]> {
+  const supabase = getSupabase();
+  let query = supabase
+    .from("patient_documents")
+    .select()
+    .eq("patient_id", patientId)
+    .order("uploaded_at", { ascending: false });
+
+  if (options?.limit != null) {
+    query = query.limit(options.limit);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PatientDocument[];
+}
+
+export async function getPatientDocument(
+  documentId: string,
+): Promise<PatientDocument | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("patient_documents")
+    .select()
+    .eq("document_id", documentId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return (data as PatientDocument | null) ?? null;
+}
+
+export async function createPatientDocument(params: {
+  documentId: string;
+  patientId: string;
+  title: string;
+  docType: PatientDocumentType;
+  mimeType: string;
+  storagePath: string;
+  byteSize: number;
+  extractedText?: string | null;
+  summary?: string | null;
+}): Promise<PatientDocument> {
+  const supabase = getSupabase();
+  const row = {
+    document_id: params.documentId,
+    patient_id: params.patientId,
+    title: params.title,
+    doc_type: params.docType,
+    mime_type: params.mimeType,
+    storage_path: params.storagePath,
+    byte_size: params.byteSize,
+    extracted_text: params.extractedText ?? null,
+    summary: params.summary ?? null,
+  };
+
+  const { data, error } = await supabase
+    .from("patient_documents")
+    .insert(row)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data as PatientDocument;
+}
+
+export async function deletePatientDocument(
+  documentId: string,
+): Promise<PatientDocument | null> {
+  const supabase = getSupabase();
+  const existing = await getPatientDocument(documentId);
+  if (!existing) return null;
+
+  const { error: storageError } = await supabase.storage
+    .from(PATIENT_DOCS_BUCKET)
+    .remove([existing.storage_path]);
+
+  if (storageError) {
+    // Continue with DB delete if the object is already gone.
+    const missing =
+      storageError.message.toLowerCase().includes("not found") ||
+      storageError.message.toLowerCase().includes("does not exist");
+    if (!missing) throw new Error(storageError.message);
+  }
+
+  const { error } = await supabase
+    .from("patient_documents")
+    .delete()
+    .eq("document_id", documentId);
+
+  if (error) throw new Error(error.message);
+  return existing;
+}
+
+export async function uploadPatientDocumentFile(params: {
+  storagePath: string;
+  body: Buffer | ArrayBuffer | Blob | File;
+  contentType: string;
+}): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.storage
+    .from(PATIENT_DOCS_BUCKET)
+    .upload(params.storagePath, params.body, {
+      contentType: params.contentType,
+      upsert: false,
+    });
+
+  if (error) throw new Error(error.message);
+}
+
+export async function downloadPatientDocumentFile(
+  storagePath: string,
+): Promise<Blob> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase.storage
+    .from(PATIENT_DOCS_BUCKET)
+    .download(storagePath);
+
+  if (error) throw new Error(error.message);
+  return data;
 }

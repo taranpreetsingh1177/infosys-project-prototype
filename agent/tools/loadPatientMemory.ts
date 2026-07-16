@@ -36,6 +36,7 @@ export async function loadPatientMemoryExecute(input: {
       edit_log: session.agent_metadata?.edit_log ?? [],
       patient_memory: patientMemory,
       symptom_recurrence: symptomRecurrence,
+      patient_documents: session.agent_metadata?.patient_documents,
     },
   });
 

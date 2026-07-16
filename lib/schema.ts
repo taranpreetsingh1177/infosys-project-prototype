@@ -68,6 +68,7 @@ export const FindingSchema = z.object({
   temporality: FindingTemporalitySchema,
   confidence: z.number().min(0).max(1),
   source_lines: z.array(z.string()),
+  evidence_spans: z.array(z.string()).default([]),
   asserted_by: z
     .enum(["patient", "clinician", "system", "unknown"])
     .default("unknown"),
@@ -215,6 +216,41 @@ export const PatientMemoryUpdateSchema = z.object({
 
 export type PatientMemoryUpdate = z.infer<typeof PatientMemoryUpdateSchema>;
 
+export const PatientDocumentTypeSchema = z.enum([
+  "lab",
+  "imaging",
+  "referral",
+  "discharge",
+  "other",
+]);
+
+export type PatientDocumentType = z.infer<typeof PatientDocumentTypeSchema>;
+
+export const PatientDocumentSchema = z.object({
+  document_id: z.string(),
+  patient_id: z.string(),
+  title: z.string(),
+  doc_type: PatientDocumentTypeSchema,
+  mime_type: z.string(),
+  storage_path: z.string(),
+  byte_size: z.number().int().nonnegative(),
+  extracted_text: z.string().nullable().optional(),
+  summary: z.string().nullable().optional(),
+  uploaded_at: z.string(),
+});
+
+export type PatientDocument = z.infer<typeof PatientDocumentSchema>;
+
+/** Compact document refs stored on session agent_metadata for pipeline prompts. */
+export const PatientDocumentContextSchema = z.object({
+  document_id: z.string(),
+  title: z.string(),
+  doc_type: PatientDocumentTypeSchema,
+  summary: z.string().nullable().optional(),
+});
+
+export type PatientDocumentContext = z.infer<typeof PatientDocumentContextSchema>;
+
 export const PipelineProgressSchema = z.object({
   current_step: z.string().nullable().default(null),
   completed_steps: z.array(z.string()).default([]),
@@ -227,6 +263,7 @@ export const AgentMetadataSchema = z.object({
   pipeline_progress: PipelineProgressSchema.optional(),
   patient_memory: PatientMemorySnapshotSchema.nullable().optional(),
   symptom_recurrence: z.array(SymptomRecurrenceItemSchema).optional(),
+  patient_documents: z.array(PatientDocumentContextSchema).optional(),
   created_memory_id: z.string().optional(),
 });
 
@@ -277,6 +314,7 @@ export const FindingExtractionItemSchema = z.object({
   temporality: FindingTemporalitySchema,
   confidence: z.number().min(0).max(1),
   source_lines: z.array(z.string()),
+  evidence_spans: z.array(z.string()),
   asserted_by: z.enum(["patient", "clinician", "system", "unknown"]),
 });
 

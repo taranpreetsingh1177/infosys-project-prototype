@@ -7,6 +7,8 @@ import {
   RiArrowLeftLine,
   RiArrowRightSLine,
   RiFileList3Line,
+  RiFileTextLine,
+  RiHistoryLine,
   RiSearchLine,
 } from "@remixicon/react";
 
@@ -16,6 +18,7 @@ import {
   CreateSessionProvider,
   useCreateSession,
 } from "@/components/clinical/clinical-shell";
+import { PatientDocumentsSection } from "@/components/clinical/patient-documents-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +30,12 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import {
   getPatientAvatarClassName,
   getPatientInitials,
@@ -325,44 +334,57 @@ export default function PatientHistoryPage() {
 
         <PatientDetailsCard patient={patient} />
 
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold tracking-tight">
-            Session history
-          </h2>
+        <Tabs defaultValue="sessions" className="flex w-full flex-col gap-4">
+          <TabsList>
+            <TabsTrigger value="sessions" className="cursor-pointer">
+              <RiHistoryLine />
+              Sessions
+            </TabsTrigger>
+            <TabsTrigger value="documents" className="cursor-pointer">
+              <RiFileTextLine />
+              Documents
+            </TabsTrigger>
+          </TabsList>
 
-          <div className="relative">
-            <RiSearchLine className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search sessions by date, visit type, or status..."
-              className="h-10 pl-9"
-            />
-          </div>
-
-          <p className="text-sm text-muted-foreground">
-            {sessions.length === 0
-              ? "No sessions"
-              : `${filteredSessions.length} session${filteredSessions.length === 1 ? "" : "s"}`}
-          </p>
-
-          {sessions.length === 0 ? (
-            <EmptySessionsCard />
-          ) : filteredSessions.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-8 text-center">
-              <p className="text-sm font-medium">No sessions found</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Try adjusting your search terms
-              </p>
+          <TabsContent value="sessions" className="flex flex-col gap-4">
+            <div className="relative">
+              <RiSearchLine className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search sessions by date, visit type, or status..."
+                className="h-10 pl-9"
+              />
             </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {filteredSessions.map((session) => (
-                <SessionCardItem key={session.session_id} session={session} />
-              ))}
-            </div>
-          )}
-        </div>
+
+            <p className="text-sm text-muted-foreground">
+              {sessions.length === 0
+                ? "No sessions"
+                : `${filteredSessions.length} session${filteredSessions.length === 1 ? "" : "s"}`}
+            </p>
+
+            {sessions.length === 0 ? (
+              <EmptySessionsCard />
+            ) : filteredSessions.length === 0 ? (
+              <div className="rounded-lg border border-dashed p-8 text-center">
+                <p className="text-sm font-medium">No sessions found</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Try adjusting your search terms
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {filteredSessions.map((session) => (
+                  <SessionCardItem key={session.session_id} session={session} />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="documents">
+            <PatientDocumentsSection patientId={patientId} />
+          </TabsContent>
+        </Tabs>
       </div>
       </CreateSessionProvider>
     </ClinicalShell>

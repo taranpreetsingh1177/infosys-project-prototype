@@ -3,64 +3,15 @@ import { clinicalScribeModel } from "@/lib/ai";
 import { z } from "zod";
 import { buildExtractFindingsPrompt } from "@/agent/prompts";
 import {
-  getFindings,
   getSourceLines,
   upsertFindings,
 } from "@/lib/db";
+import { resolveSourceLineIds } from "@/lib/line-id";
 import {
   FindingSchema,
   FindingsExtractionSchema,
   type Finding,
-  type SourceLine,
 } from "@/lib/schema";
-
-/**
- * LLMs frequently "simplify" long compound line_id values (e.g.
- * "<uuid>:L4") down to just their visible suffix ("L4") even when told to
- * copy them verbatim. Rather than silently dropping citations (and cascading
- * into verification/SOAP/citation-click failures), resolve each cited
- * line_id against the known set of source lines for this session, falling
- * back to a suffix/sequence match when the exact id isn't found.
- */
-function resolveSourceLineIds(
-  citedIds: string[],
-  lines: SourceLine[],
-): string[] {
-  const byId = new Map(lines.map((line) => [line.line_id, line.line_id]));
-  const bySuffix = new Map(
-    lines.map((line) => [line.line_id.split(":").pop() ?? line.line_id, line.line_id]),
-  );
-
-  const resolved: string[] = [];
-  for (const rawId of citedIds) {
-    const id = rawId.trim();
-    if (!id) continue;
-
-    const exact = byId.get(id);
-    if (exact) {
-      resolved.push(exact);
-      continue;
-    }
-
-    const suffix = id.split(":").pop() ?? id;
-    const bySuffixMatch = bySuffix.get(suffix);
-    if (bySuffixMatch) {
-      resolved.push(bySuffixMatch);
-      continue;
-    }
-
-    const numericMatch = suffix.match(/L(\d+)$/i);
-    if (numericMatch) {
-      const sequence = Number(numericMatch[1]) - 1;
-      const bySequence = lines.find((line) => line.sequence === sequence);
-      if (bySequence) {
-        resolved.push(bySequence.line_id);
-      }
-    }
-  }
-
-  return [...new Set(resolved)];
-}
 
 export async function extractFindingsExecute(input: {
   sessionId: string;
@@ -89,6 +40,9 @@ export async function extractFindingsExecute(input: {
   const findings: Finding[] = object.findings.map((finding) =>
     FindingSchema.parse({
       ...finding,
+      evidence_spans: (finding.evidence_spans ?? [])
+        .map((span) => span.trim())
+        .filter(Boolean),
       source_lines: resolveSourceLineIds(finding.source_lines, lines),
       finding_id: crypto.randomUUID(),
       session_id: input.sessionId,
@@ -106,7 +60,7 @@ export async function extractFindingsExecute(input: {
 
 export const extractFindingsTool = {
   description:
-    "Extract grouped, readable clinical findings from source lines with line_id citations and explicit negation handling.",
+    "Extract grouped, readable clinical findings from source lines with line_id citations, evidence spans, and explicit negation handling.",
   inputSchema: z.object({
     sessionId: z.string(),
   }),

@@ -54,9 +54,11 @@ export function SessionWorkspace({ sessionId }: SessionWorkspaceProps) {
         )}
       >
         <SessionHeader
+          sessionId={session.id}
           patientId={session.patient_id}
           patientName={session.patient_name}
           visitDate={session.visit_date}
+          status={session.status}
         />
         <div className="flex min-h-0 flex-1 flex-col overflow-auto">
           <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-6">

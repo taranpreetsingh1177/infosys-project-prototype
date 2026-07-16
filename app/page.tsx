@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -20,6 +21,12 @@ import { MOCK_PATIENTS } from "@/lib/mock/rajesh-sharma-session";
 import type { PatientCard } from "@/lib/types/session";
 
 type SortOption = "last_updated" | "name_asc" | "name_desc";
+
+const SORT_LABELS: Record<SortOption, string> = {
+  last_updated: "Last updated",
+  name_asc: "Name (A–Z)",
+  name_desc: "Name (Z–A)",
+};
 
 function matchesSearch(patient: PatientCard, query: string) {
   const q = query.trim().toLowerCase();
@@ -104,14 +111,23 @@ export default function HomePage() {
             <Select
               value={sort}
               onValueChange={(value) => setSort(value as SortOption)}
+              items={SORT_LABELS}
             >
               <SelectTrigger className="h-8 w-[160px]" size="sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="last_updated">Last updated</SelectItem>
-                <SelectItem value="name_asc">Name (A–Z)</SelectItem>
-                <SelectItem value="name_desc">Name (Z–A)</SelectItem>
+                <SelectGroup>
+                  <SelectItem value="last_updated">
+                    {SORT_LABELS.last_updated}
+                  </SelectItem>
+                  <SelectItem value="name_asc">
+                    {SORT_LABELS.name_asc}
+                  </SelectItem>
+                  <SelectItem value="name_desc">
+                    {SORT_LABELS.name_desc}
+                  </SelectItem>
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>

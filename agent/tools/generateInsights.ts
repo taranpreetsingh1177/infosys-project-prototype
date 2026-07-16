@@ -7,10 +7,16 @@ import {
   detectSafetyTriageGaps,
   mergeInsights,
 } from "@/lib/decisions";
-import { getSession, getFindings, getSourceLines, upsertInsights } from "@/lib/db";
+import {
+  getSession,
+  getFindings,
+  getSourceLines,
+  upsertInsights,
+} from "@/lib/db";
 import { resolveSourceLineIds } from "@/lib/line-id";
 import type { SourceLine as UiSourceLine } from "@/lib/types/session";
 import { buildPriorMemorySummary } from "@/lib/memory";
+import { buildPatientDocumentsPromptSummary } from "@/lib/patient-documents";
 import {
   InsightSchema,
   InsightsGenerationSchema,
@@ -57,6 +63,7 @@ export async function generateInsightsExecute(input: {
   ]);
   const patientMemory = session.agent_metadata?.patient_memory ?? null;
   const symptomRecurrence = session.agent_metadata?.symptom_recurrence ?? [];
+  const patientDocuments = session.agent_metadata?.patient_documents ?? [];
 
   const uiSourceLines: UiSourceLine[] = dbSourceLines.map((line) => ({
     line_id: line.line_id,
@@ -74,11 +81,17 @@ export async function generateInsightsExecute(input: {
     .join("\n");
 
   const patientMemorySummary = buildPriorMemorySummary(patientMemory);
+  const patientDocumentsSummary =
+    buildPatientDocumentsPromptSummary(patientDocuments);
 
   const { object } = await generateObject({
     model: clinicalScribeModel,
     schema: InsightsGenerationSchema,
-    prompt: buildGenerateInsightsPrompt(findingsSummary, patientMemorySummary),
+    prompt: buildGenerateInsightsPrompt(
+      findingsSummary,
+      patientMemorySummary,
+      patientDocumentsSummary,
+    ),
   });
 
   const llmInsights: Insight[] = object.insights.map((insight) => {
@@ -142,7 +155,7 @@ export async function generateInsightsExecute(input: {
 
 export const generateInsightsTool = {
   description:
-    "Generate actionable clinical insights using findings and patient memory context.",
+    "Generate actionable clinical insights using findings, patient memory, and on-file documents.",
   inputSchema: z.object({
     sessionId: z.string(),
   }),

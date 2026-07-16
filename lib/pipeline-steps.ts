@@ -4,6 +4,7 @@ export const PIPELINE_STEP_IDS = [
   "structureSoap",
   "flagCompleteness",
   "loadPatientMemory",
+  "loadPatientDocuments",
   "generateInsights",
   "updatePatientMemory",
   "writeBack",
@@ -42,6 +43,11 @@ export const PIPELINE_STEPS: PipelineStepDefinition[] = [
     id: "loadPatientMemory",
     label: "Loading patient memory",
     description: "Retrieving longitudinal context from prior visits",
+  },
+  {
+    id: "loadPatientDocuments",
+    label: "Loading patient documents",
+    description: "Retrieving prior labs and reports on file for this patient",
   },
   {
     id: "generateInsights",

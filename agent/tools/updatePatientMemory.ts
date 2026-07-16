@@ -16,6 +16,7 @@ import {
   buildSoapSummary,
   toPatientMemorySnapshot,
 } from "@/lib/memory";
+import { buildPatientDocumentsPromptSummary } from "@/lib/patient-documents";
 import { PatientMemoryUpdateLlmSchema } from "@/lib/schema";
 
 function isRetryableAiError(error: unknown): boolean {
@@ -57,6 +58,9 @@ export async function updatePatientMemoryExecute(input: {
   const priorMemory =
     session.agent_metadata?.patient_memory ??
     (priorMemoryVersion ? toPatientMemorySnapshot(priorMemoryVersion) : null);
+  const patientDocumentsSummary = buildPatientDocumentsPromptSummary(
+    session.agent_metadata?.patient_documents ?? [],
+  );
 
   const defaultDerivedSessionIds = [
     ...new Set([
@@ -75,6 +79,7 @@ export async function updatePatientMemoryExecute(input: {
         findingsSummary: buildSessionFindingsSummary(findings),
         soapSummary: buildSoapSummary(session.soap),
         sessionId: input.sessionId,
+        patientDocumentsSummary,
       }),
     }));
   } catch (error) {
@@ -104,6 +109,7 @@ export async function updatePatientMemoryExecute(input: {
       edit_log: session.agent_metadata?.edit_log ?? [],
       patient_memory: session.agent_metadata?.patient_memory,
       symptom_recurrence: session.agent_metadata?.symptom_recurrence,
+      patient_documents: session.agent_metadata?.patient_documents,
       created_memory_id: memory.memory_id,
     },
   });

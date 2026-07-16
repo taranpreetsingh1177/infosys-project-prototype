@@ -1,8 +1,12 @@
-import type { SourceLine } from "@/lib/types/session";
-
 const FULL_LINE_ID =
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:L\d+/gi;
 const LINE_SUFFIX = /\bL\d+\b/g;
+
+/** Minimal line shape needed to resolve citations (DB rows may include sequence). */
+export type LineIdResolvable = {
+  line_id: string;
+  sequence?: number;
+};
 
 /** Visible transcript label, e.g. `{sessionId}:L4` → `L4`. */
 export function lineIdSuffix(id: string): string {
@@ -45,12 +49,15 @@ export function activeLineIdsInclude(
 }
 
 /**
- * Map cited ids (exact or suffix, e.g. `L4`) to canonical `line_id` values
- * from the session's source lines.
+ * Map cited ids (exact, suffix e.g. `L4`, or sequence fallback) to canonical
+ * `line_id` values from the session's source lines.
+ *
+ * LLMs frequently simplify compound ids (`<uuid>:L4` → `L4`). When even the
+ * suffix is mangled, fall back to 1-based `L{n}` → `sequence === n - 1`.
  */
 export function resolveSourceLineIds(
   citedIds: string[],
-  lines: SourceLine[],
+  lines: LineIdResolvable[],
 ): string[] {
   const byId = new Map(lines.map((line) => [line.line_id, line.line_id]));
   const bySuffix = new Map(
@@ -70,6 +77,16 @@ export function resolveSourceLineIds(
       const bySuffixMatch = bySuffix.get(suffix);
       if (bySuffixMatch) {
         resolved.push(bySuffixMatch);
+        continue;
+      }
+
+      const numericMatch = suffix.match(/L(\d+)$/i);
+      if (numericMatch) {
+        const sequence = Number(numericMatch[1]) - 1;
+        const bySequence = lines.find((line) => line.sequence === sequence);
+        if (bySequence) {
+          resolved.push(bySequence.line_id);
+        }
       }
     }
   }

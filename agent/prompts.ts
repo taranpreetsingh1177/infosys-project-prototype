@@ -57,6 +57,16 @@ Return findings with source_lines referencing line_id values, copied verbatim fr
 Readability:
 - Group related symptoms from the same patient response into one finding with a natural clinical phrase.
 - Avoid splitting every symptom into its own finding when they were reported together.
+- value may use clear clinical wording (expanded terms are fine), e.g. "hypertension" even if the
+  transcript says "HTN".
+
+Evidence spans (critical for verification):
+- For every finding, populate evidence_spans with one or more VERBATIM substrings copied from the
+  cited source line text — exactly as spoken/written (same spelling, acronyms, and abbreviations).
+- Prefer the acronym/abbreviation when that is what appears in the line (e.g. value "hypertension",
+  evidence_spans: ["HTN"]; value "shortness of breath", evidence_spans: ["SOB"]).
+- Spans must appear as contiguous text inside at least one cited line. Do not invent or expand spans.
+- If multiple phrases support the finding, include each as a separate span.
 
 Negation (critical — avoid double negatives):
 - If a symptom or history item is NOT present, set polarity to "denied" or "absent".
@@ -71,7 +81,7 @@ Negation (critical — avoid double negatives):
   If the patient affirms smoking → polarity present with an appropriate use description.
 - Do NOT combine "denies" with words that already negate (never, no, non-, not).
 - For clinician questions followed by patient denials, include BOTH the question line_id and the answer line_id
-  in source_lines.
+  in source_lines. evidence_spans should quote the denial or the symptom term as it appears in those lines.
 
 Make sure to cover all four SOAP categories when supported by the transcript:
 - Subjective: symptoms, history, and other patient-reported items (asserted_by: patient)
@@ -113,6 +123,7 @@ ${findingsSummary}`;
 export function buildGenerateInsightsPrompt(
   findingsSummary: string,
   patientMemorySummary: string,
+  patientDocumentsSummary: string,
 ): string {
   return `Generate clinical insights beyond summarization.
 Prioritize safety triage (red-flag symptoms not addressed in plan) and longitudinal patterns.
@@ -127,8 +138,8 @@ Writing style:
 - Every insight needs a concrete, concise clinician_action (a specific next step), not a vague
   suggestion to "monitor" or "consider" without detail.
 - Avoid duplicating the same observation across multiple insights.
-- Use prior patient memory only for longitudinal context; cite current session source_lines for
-  observations made in this visit.
+- Use prior patient memory and on-file documents only for longitudinal context; cite current
+  session source_lines for observations made in this visit.
 
 Patient memory attribution (per insight):
 - Set memory_context_used to true ONLY when prior patient memory (below) genuinely informed that
@@ -146,7 +157,10 @@ Current findings:
 ${findingsSummary}
 
 Prior patient memory:
-${patientMemorySummary}`;
+${patientMemorySummary}
+
+Prior labs/reports on file:
+${patientDocumentsSummary}`;
 }
 
 export function buildUpdatePatientMemoryPrompt(input: {
@@ -154,7 +168,15 @@ export function buildUpdatePatientMemoryPrompt(input: {
   findingsSummary: string;
   soapSummary: string;
   sessionId: string;
+  patientDocumentsSummary?: string;
 }): string {
+  const documentsBlock = input.patientDocumentsSummary
+    ? `
+
+Prior labs/reports on file (may cite when merging memory; do not invent unstated results):
+${input.patientDocumentsSummary}`
+    : "";
+
   return `Update the patient's rolling clinical memory by merging prior memory with this session.
 
 Rules:
@@ -164,7 +186,7 @@ Rules:
 - Write summary as 2-4 sentences of readable clinical prose a doctor can scan quickly.
 - Populate structured fields with concise string items (not nested objects).
 - Set derived_from_session_ids to all session_ids that contributed to this memory (prior + current).
-- Do not invent facts not supported by the prior memory or current session data.
+- Do not invent facts not supported by the prior memory, current session data, or on-file documents.
 
 Prior memory:
 ${input.priorMemorySummary}
@@ -173,7 +195,7 @@ Current session findings:
 ${input.findingsSummary}
 
 Current session SOAP:
-${input.soapSummary}`;
+${input.soapSummary}${documentsBlock}`;
 }
 
 export const PIPELINE_STEP_INSTRUCTIONS: Record<number, string> = {
@@ -182,9 +204,10 @@ export const PIPELINE_STEP_INSTRUCTIONS: Record<number, string> = {
   2: "Call structureSoap to organize verified findings into SOAP sections.",
   3: "Call flagCompleteness to check missing fields and contradictions.",
   4: "Call loadPatientMemory to retrieve prior patient memory and symptom recurrence.",
-  5: "Call generateInsights to produce actionable clinical insights.",
-  6: "Call updatePatientMemory to merge this visit into patient memory.",
-  7: "Call writeBack to mark the session complete.",
+  5: "Call loadPatientDocuments to retrieve prior labs/reports on file.",
+  6: "Call generateInsights to produce actionable clinical insights.",
+  7: "Call updatePatientMemory to merge this visit into patient memory.",
+  8: "Call writeBack to mark the session complete.",
 };
 
 export const PIPELINE_TOOLS = [
@@ -193,6 +216,7 @@ export const PIPELINE_TOOLS = [
   "structureSoap",
   "flagCompleteness",
   "loadPatientMemory",
+  "loadPatientDocuments",
   "generateInsights",
   "updatePatientMemory",
   "writeBack",

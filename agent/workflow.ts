@@ -1,6 +1,7 @@
 import { extractFindingsExecute } from "@/agent/tools/extractFindings";
 import { flagCompletenessExecute } from "@/agent/tools/flagCompleteness";
 import { generateInsightsExecute } from "@/agent/tools/generateInsights";
+import { loadPatientDocumentsExecute } from "@/agent/tools/loadPatientDocuments";
 import { loadPatientMemoryExecute } from "@/agent/tools/loadPatientMemory";
 import { structureSoapExecute } from "@/agent/tools/structureSoap";
 import { updatePatientMemoryExecute } from "@/agent/tools/updatePatientMemory";
@@ -21,6 +22,7 @@ const PIPELINE_STEPS = [
   { id: "structureSoap" as const, execute: structureSoapExecute },
   { id: "flagCompleteness" as const, execute: flagCompletenessExecute },
   { id: "loadPatientMemory" as const, execute: loadPatientMemoryExecute },
+  { id: "loadPatientDocuments" as const, execute: loadPatientDocumentsExecute },
   { id: "generateInsights" as const, execute: generateInsightsExecute },
   { id: "updatePatientMemory" as const, execute: updatePatientMemoryExecute },
   { id: "writeBack" as const, execute: writeBackExecute },
