@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState } from "react";
-import { RiAddLine } from "@remixicon/react";
+import { RiAddLine, RiChat3Line } from "@remixicon/react";
 
 import { ClinicalChat } from "@/components/clinical/clinical-chat";
 import { CreateSessionDialog } from "@/components/clinical/create-session-dialog";
@@ -40,21 +40,21 @@ export function ClinicalShell({ children }: ClinicalShellProps) {
           render={
             <Button
               size="icon-lg"
-              className="fixed right-6 bottom-6 z-40 size-14 rounded-full shadow-lg"
+              className="fixed right-5 bottom-5 z-40 size-16 rounded-full border-0 bg-teal-700 text-white shadow-lg hover:bg-teal-800 hover:text-white"
               aria-label="Open clinical chat"
             />
           }
         >
-          <span className="text-sm font-semibold tracking-tight">CW</span>
+          <RiChat3Line className="size-7" />
         </SheetTrigger>
         <SheetContent
           side="right"
-          className="w-[min(100vw,42rem)] gap-0 bg-background p-0 sm:max-w-2xl"
+          className="w-[min(100vw,48rem)] max-w-[min(100vw,48rem)] gap-0 bg-background p-0 !w-[min(100vw,48rem)] data-[side=right]:!w-[min(100vw,48rem)] data-[side=right]:sm:!max-w-[48rem] sm:!max-w-[48rem]"
         >
           <SheetHeader className="border-b px-6 py-4">
             <SheetTitle className="flex items-center gap-2.5">
-              <span className="flex size-8 items-center justify-center rounded-md bg-primary text-xs font-semibold text-primary-foreground">
-                CW
+              <span className="flex size-8 items-center justify-center rounded-md bg-teal-700 text-white">
+                <RiChat3Line className="size-4" />
               </span>
               Clinical Chat
             </SheetTitle>

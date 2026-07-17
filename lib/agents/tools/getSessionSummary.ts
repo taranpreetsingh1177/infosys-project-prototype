@@ -5,7 +5,7 @@ import { getSessionDetail } from "@/lib/db";
 
 export const getSessionSummary = tool({
   description:
-    "Load a session summary: patient demographics, visit metadata, SOAP narratives, and key findings. May require clinician approval when the session is not for the pinned patient.",
+    "Load a session summary: patient demographics, visit metadata, SOAP narratives, and key findings. Requires clinician approval before returning PHI.",
   inputSchema: z.object({
     sessionId: z.string().describe("Session ID to summarize"),
   }),

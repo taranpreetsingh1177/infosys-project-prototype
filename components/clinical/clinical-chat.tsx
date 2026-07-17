@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import {
   DefaultChatTransport,
@@ -8,7 +8,7 @@ import {
   isToolUIPart,
   lastAssistantMessageIsCompleteWithApprovalResponses,
 } from "ai";
-import { RiSendPlane2Line } from "@remixicon/react";
+import { RiArrowUpLine, RiBrainLine } from "@remixicon/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -35,15 +35,7 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { PatientCard } from "@/lib/types/session";
 import { cn } from "@/lib/utils";
 
 const TOOL_STEP_LABELS: Record<string, string> = {
@@ -80,13 +72,7 @@ function ReasoningBlock({
 }) {
   const streaming = state === "streaming";
   const hasText = Boolean(text.trim());
-  const [value, setValue] = useState<string[]>(
-    streaming || hasText ? [id] : [],
-  );
-
-  useEffect(() => {
-    if (streaming || hasText) setValue([id]);
-  }, [streaming, hasText, id]);
+  const [value, setValue] = useState<string[]>([]);
 
   if (!hasText && !streaming) return null;
 
@@ -104,14 +90,13 @@ function ReasoningBlock({
             streaming && "shimmer",
           )}
         >
-          {streaming && !hasText
-            ? "Thinking…"
-            : streaming
-              ? "Reasoning…"
-              : "Reasoning"}
+          <span className="flex items-center gap-2">
+            <RiBrainLine className="size-4 shrink-0" />
+            {streaming ? "Thinking…" : "Thinking"}
+          </span>
         </AccordionTrigger>
-        <AccordionContent className="whitespace-pre-wrap text-muted-foreground">
-          {hasText ? text : "…"}
+        <AccordionContent className="text-muted-foreground">
+          {hasText ? <AssistantMarkdown>{text}</AssistantMarkdown> : "…"}
         </AccordionContent>
       </AccordionItem>
     </Accordion>
@@ -375,23 +360,11 @@ export function ClinicalChat({
   className,
 }: ClinicalChatProps) {
   const [input, setInput] = useState("");
-  const [patients, setPatients] = useState<PatientCard[]>([]);
-  const [pinnedPatientId, setPinnedPatientId] = useState<string>("");
-
-  useEffect(() => {
-    void fetch("/api/patients")
-      .then((res) => (res.ok ? res.json() : { patients: [] }))
-      .then((data: { patients: PatientCard[] }) => setPatients(data.patients))
-      .catch(() => setPatients([]));
-  }, []);
 
   const { messages, sendMessage, status, addToolApprovalResponse, error } =
     useChat<ClinicalAssistantUIMessage>({
       transport: new DefaultChatTransport({
         api: "/api/chat",
-        body: () => ({
-          pinnedPatientId: pinnedPatientId || undefined,
-        }),
       }),
       sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
     });
@@ -407,55 +380,23 @@ export function ClinicalChat({
         className,
       )}
     >
-      <div
-        className={cn(
-          "flex flex-wrap items-end justify-between gap-3",
-          isDrawer && "gap-2",
-        )}
-      >
-        <div className="min-w-0 space-y-1">
-          {isDrawer ? (
+      <div className="min-w-0 space-y-1">
+        {isDrawer ? (
+          <p className="text-sm text-muted-foreground">
+            Ask across patients, sessions, memory, and documents. Sensitive
+            reads pause for approval.
+          </p>
+        ) : (
+          <>
+            <h1 className="font-serif text-4xl font-normal tracking-tight">
+              Chat
+            </h1>
             <p className="text-sm text-muted-foreground">
-              Ask across patients, sessions, memory, and documents.
+              Ask across patients, sessions, memory, and documents. Sensitive
+              reads pause for approval.
             </p>
-          ) : (
-            <>
-              <h1 className="font-serif text-4xl font-normal tracking-tight">
-                Chat
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Ask across patients, sessions, memory, and documents. Sensitive
-                reads pause for approval.
-              </p>
-            </>
-          )}
-        </div>
-        <div className={cn(isDrawer ? "w-full sm:w-48" : "w-56")}>
-          <label className="mb-1 block text-xs font-medium text-muted-foreground">
-            Pin patient (optional)
-          </label>
-          <Select
-            value={pinnedPatientId || "__none__"}
-            onValueChange={(value) =>
-              setPinnedPatientId(!value || value === "__none__" ? "" : value)
-            }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="No pin" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">No pin</SelectItem>
-              {patients.map((patient) => (
-                <SelectItem
-                  key={patient.patient_id}
-                  value={patient.patient_id}
-                >
-                  {patient.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+          </>
+        )}
       </div>
 
       <MessageScrollerProvider>
@@ -464,8 +405,7 @@ export function ClinicalChat({
             <MessageScrollerContent>
               {messages.length === 0 && (
                 <div className="flex flex-1 items-center justify-center py-16 text-sm text-muted-foreground">
-                  Try “List patients” or pin a patient and ask about their
-                  latest visit.
+                  Try “List patients” or ask about a patient’s latest visit.
                 </div>
               )}
               {messages.map((message, messageIndex) => (
@@ -525,7 +465,7 @@ export function ClinicalChat({
           }}
         />
         <Button type="submit" size="icon-lg" disabled={busy || !input.trim()}>
-          <RiSendPlane2Line />
+          <RiArrowUpLine />
           <span className="sr-only">Send</span>
         </Button>
       </form>

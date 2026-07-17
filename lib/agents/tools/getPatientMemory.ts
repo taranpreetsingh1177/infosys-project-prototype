@@ -5,7 +5,7 @@ import { getLatestPatientMemory, getPatient } from "@/lib/db";
 
 export const getPatientMemory = tool({
   description:
-    "Load the latest longitudinal patient memory (problems, meds, allergies, recent visits). May require approval when the patient is not pinned.",
+    "Load the latest longitudinal patient memory (problems, meds, allergies, recent visits). Requires clinician approval before returning PHI.",
   inputSchema: z.object({
     patientId: z.string().describe("Patient ID"),
   }),
